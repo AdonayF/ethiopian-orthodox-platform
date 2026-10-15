@@ -104,7 +104,7 @@ export class AppComponent {
     { id: 'temptation', english: 'Lust & temptation', amharic: 'ምኞትና ፈተና', note: 'Explore teachings about thoughts, temptation, and self-control.', references: ['Matthew 5:27–30', 'James 1:12–15'] },
     { id: 'greed', english: 'Greed', amharic: 'ስግብግብነት', note: 'Reflect on possessions, contentment, and the priorities of the heart.', references: ['Luke 12:15–21', '1 Timothy 6:6–10'] },
     { id: 'sexual-immorality', english: 'Sexual immorality', amharic: 'ዝሙት', note: 'Read about honoring God through your choices and actions.', references: ['1 Corinthians 6:18–20', '1 Thessalonians 4:3–5'] },
-    { id: 'fear', english: 'Fear', amharic: 'ፍርሃት', note: 'Find passages about courage and God's presence amid fear.', references: ['Psalm 27:1', 'Isaiah 41:10'] },
+    { id: 'fear', english: 'Fear', amharic: 'ፍርሃት', note: "Find passages about courage and God's presence amid fear.", references: ['Psalm 27:1', 'Isaiah 41:10'] },
     { id: 'forgiveness', english: 'Forgiveness', amharic: 'ይቅርታ', note: 'Reflect on mercy and forgiveness in daily life.', references: ['Matthew 18:21–35', 'Ephesians 4:32'] },
     { id: 'discouraged', english: 'Discouragement', amharic: 'ተስፋ መቁረጥ', note: 'Read about hope and perseverance in difficult seasons.', references: ['Psalm 42', 'Romans 15:13'] }
   ];
