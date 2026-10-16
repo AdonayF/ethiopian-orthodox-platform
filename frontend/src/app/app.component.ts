@@ -4,6 +4,8 @@ import { HttpClient } from '@angular/common/http';
 interface Announcement { id: number; title: string; body: string; date: string }
 interface ChurchEvent { id: number; title: string; description: string; date: string; location: string }
 interface ScriptureTopic { id: string; english: string; amharic: string; note: string; references: string[] }
+interface BibleVerse { book_name: string; chapter: number; verse: number; text: string }
+interface BiblePassage { reference: string; verses: BibleVerse[]; translation_name: string }
 
 @Component({
   selector: 'app-root',
@@ -73,7 +75,7 @@ interface ScriptureTopic { id: string; english: string; amharic: string; note: s
           <div class="scripture-guide">
             <div class="topic-list" aria-label="Choose a Bible reading topic">
               @for (topic of scriptureTopics; track topic.id) {
-                <button type="button" class="topic-button" [class.active]="selectedTopic().id === topic.id" [attr.aria-pressed]="selectedTopic().id === topic.id" (click)="selectedTopic.set(topic)">
+                <button type="button" class="topic-button" [class.active]="selectedTopic().id === topic.id" [attr.aria-pressed]="selectedTopic().id === topic.id" (click)="chooseTopic(topic)">
                   <span><strong>{{ topic.english }}</strong><small lang="am">{{ topic.amharic }}</small></span><span aria-hidden="true">↗</span>
                 </button>
               }
@@ -83,10 +85,28 @@ interface ScriptureTopic { id: string; english: string; amharic: string; note: s
               <p class="reading-note">{{ selectedTopic().note }}</p>
               <div class="readings">
                 @for (reference of selectedTopic().references; track reference) {
-                  <div class="reading-row"><span aria-hidden="true">✣</span><strong>{{ reference }}</strong><small>Read and reflect</small></div>
+                  <button type="button" class="reading-row reading-choice" [class.selected]="selectedReference() === reference" (click)="openPassage(reference)"><span aria-hidden="true">✣</span><strong>{{ reference }}</strong><small>Read passage →</small></button>
                 }
               </div>
-              <p class="reading-caution">Reading guide only. Full English and Amharic Bible texts, chapter navigation, and Ethiopian Orthodox canon support are planned, pending translation permissions and church review.</p>
+              <div class="passage-reader" aria-live="polite">
+                <div class="reader-head"><div><p class="eyebrow">READ THE PASSAGE</p><h4>{{ displayReference() }}</h4></div><span>World English Bible (English)</span></div>
+                <div class="reader-actions">
+                  <button type="button" [disabled]="readingLoading()" (click)="openPassage(selectedReference(), true)">Read the whole chapter</button>
+                  <button type="button" [disabled]="readingLoading()" (click)="openPassage(selectedReference(), false)">Read selected verses</button>
+                </div>
+                @if (readingLoading()) { <p class="reader-status" role="status">Loading Scripture…</p> }
+                @else if (readingError()) { <p class="reader-status error" role="alert">The Bible text couldn't load. Check your internet connection or choose another passage.</p> }
+                @else if (passage()) {
+                  <div class="verse-list" lang="en">
+                    @for (verse of passage()!.verses; track verse.book_name + ':' + verse.chapter + ':' + verse.verse) {
+                      <p><sup>{{ verse.verse }}</sup> {{ verse.text }}</p>
+                    }
+                  </div>
+                  <p class="translation-credit">Translation: {{ passage()!.translation_name }} · Scripture served by bible-api.com.</p>
+                }
+                <div class="amharic-status"><strong lang="am">አማርኛ</strong> · Amharic Scripture text is not available in this preview yet. We won't display machine-generated Bible translations in place of an authorized edition.</div>
+              </div>
+              <p class="reading-caution">This English reader currently covers passages available in the World English Bible, not the complete Ethiopian Orthodox canon. An approved Amharic edition and additional canonical books are still needed.</p>
             </div>
           </div>
         </div>
@@ -109,6 +129,41 @@ export class AppComponent {
     { id: 'discouraged', english: 'Discouragement', amharic: 'ተስፋ መቁረጥ', note: 'Read about hope and perseverance in difficult seasons.', references: ['Psalm 42', 'Romans 15:13'] }
   ];
   readonly selectedTopic = signal<ScriptureTopic>(this.scriptureTopics[0]);
+  readonly selectedReference = signal('Matthew 6:25–34');
+  readonly displayReference = signal('Matthew 6:25–34');
+  readonly passage = signal<BiblePassage | null>(null);
+  readonly readingLoading = signal(false);
+  readonly readingError = signal(false);
+  private readingRequest = 0;
+
+  chooseTopic(topic: ScriptureTopic): void {
+    this.selectedTopic.set(topic);
+    this.openPassage(topic.references[0]);
+  }
+
+  openPassage(reference: string, fullChapter = false): void {
+    this.selectedReference.set(reference);
+    const match = reference.match(/^(.+?)\\s+(\\d+)(?::[\\d–-]+)?$/);
+    const query = fullChapter && match ? match[1] + ' ' + match[2] : reference.replace(/–/g, '-');
+    this.displayReference.set(query);
+    this.readingLoading.set(true);
+    this.readingError.set(false);
+    this.passage.set(null);
+    const requestId = ++this.readingRequest;
+    this.http.get<BiblePassage>('https://bible-api.com/' + encodeURIComponent(query) + '?translation=web').subscribe({
+      next: result => {
+        if (requestId !== this.readingRequest) return;
+        if (!result.verses?.length) { this.readingError.set(true); }
+        else { this.passage.set(result); }
+        this.readingLoading.set(false);
+      },
+      error: () => {
+        if (requestId !== this.readingRequest) return;
+        this.readingError.set(true);
+        this.readingLoading.set(false);
+      }
+    });
+  }
   readonly events = signal<ChurchEvent[]>([]);
   readonly announcements = signal<Announcement[]>([]);
   readonly eventsLoading = signal(true);
@@ -117,6 +172,7 @@ export class AppComponent {
   readonly announcementsError = signal(false);
 
   constructor() {
+    this.openPassage(this.selectedReference());
     this.http.get<ChurchEvent[]>('http://localhost:8000/api/v1/events').subscribe({
       next: data => { this.events.set(data); this.eventsLoading.set(false); },
       error: () => { this.eventsError.set(true); this.eventsLoading.set(false); }
